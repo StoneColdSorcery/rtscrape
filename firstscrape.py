@@ -7,7 +7,7 @@ from bs4 import BeautifulSoup
 
 import re
 import requests
-import urllib
+from requests.exceptions import InvalidURL
 
 rvwTableClass = 'table-striped'
 siteurl = "http://www.rottentomatoes.com"
@@ -26,29 +26,36 @@ class Review(object):
     def __init__(self,trow):
         
         if(len(trow) != self.RowSize):
+            print("ERROR: input trow has length: ".len(trow))
+            print("Review object not created")
             raise ValueError
-        
+            
         try:
             verdictSpan = trow[0].find('span')
             self.tomatoScore = verdictSpan.find('span','tMeterScore').string
-        except AttributeError:
-            self.tomatoScore = 'NA'    
-    
+        except (AttributeError, IndexError) as e:
+            self.tomatoScore = 'NA'   
+            print("In Review init: Error creating tscore") 
+            repr(e)
         #fOrR = verdictSpan.find('span').get('title')
         try:
             self.fOrR = trow[1].find('span').get('class')[2] #3rd string in class attr is fresh/rotten
-        except AttributeError:
+        except (AttributeError, IndexError) as e:
             self.fOrR = 'VerdictError'   
-
+            print("In Review init: Error creating fOrR") 
+            repr(e) 
         try:
             self.MovieTitle = trow[2].a.string
-        except AttributeError:
+        except (AttributeError, IndexError) as e:
             self.MovieTitle = 'NoTitleFound'
-        
+            print("In Review init, Error creating movietitle",) 
+            repr(e)
         try:
             self.rvwLink = trow[3].a.get('href')
-        except:
+        except (AttributeError, IndexError) as e:
             self.rvwLink = 'NoLink'
+            print("In Review init: Error creating rvwlink") 
+            repr(e)
     
     def printInfo(self):
     
@@ -75,40 +82,58 @@ class Critic(object):
         self.reviews = []
         
         
+        
+        
+
         r  = requests.get(self.hp_url)
-        data = r.text
-        self.soup = BeautifulSoup(data)
         
-        #find td elements of class 'center'
-        #then look sideways to get the other 
-        # tds in the row
-        centds = self.soup.find_all('td','center') 
-        
-        parsedRows = [] #list for parsed row tags
-        
-        for td in centds:
-            print("href of center td: ",td.a.get('href'))
-     
-            mlink = td
-            rvwtxt = td.findNext('td')
-            tverdict = td.findPrevious('td')
-            tscore = tverdict.findPrevious('td')
-            parsedRows.append((tverdict,tscore,mlink,rvwtxt))
-            print(parsedRows[len(parsedRows) - 1])
-        
-        for r in parsedRows:
-            try:
+        try:
+            while(True): 
+            #iterate through column pages until an invalid link exception is thrown
             
-                tempRowOject = Review(r)
-                self.reviews.append(tempRowOject)
-            except Exception as E:
-                print('Exception creating review objects: ', E)
-            
-            
+                data = r.text
+                soup = BeautifulSoup(data)
+                
+                #find td elements of class 'center'
+                #then look sideways to get the other 
+                # tds in the row
+                centds = soup.find_all('td','center') 
+                
+                parsedRows = [] #list for parsed row tags
+                
+                for td in centds:
+                    print("href of center td: ",td.a.get('href'))
+             
+                    mlink = td
+                    rvwtxt = td.findNext('td')
+                    tverdict = td.findPrevious('td')
+                    tscore = tverdict.findPrevious('td')
+                    parsedRows.append((tverdict,tscore,mlink,rvwtxt))
+                    #print(parsedRows[len(parsedRows) - 1])
+                
+                for i,rt in enumerate(parsedRows):
+                    try:
+                    
+                        tempRowObject = Review(rt)
+                        self.reviews.append(tempRowObject)
+                    except Exception as E:
+                        print('At i = ',i,'Exception creating review object: ', E)
+                
+                nexttag = soup.find('a',text='Next')
+                nextpagelink = nexttag.get('href')
+                nextpageurl = siteurl + nextpagelink
+                print(nextpageurl)
+                r  = requests.get(nextpageurl)
+                        
+        except (InvalidURL,AttributeError) as InvalidLinkEx:
+                print("Exiting table parse iteration with: ",repr(InvalidLinkEx))
+                    
+                
             
     def printVerdicts(self):
-        for r in self.reviews:
-            r.printInfo()
+        for i,rv in enumerate(self.reviews):
+            print(i)
+            rv.printInfo()
             
     def printSummary(self):
         print('\n')
