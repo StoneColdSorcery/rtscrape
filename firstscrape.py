@@ -81,9 +81,6 @@ class Critic(object):
         self.hp_url = siteurl + homepage 
         self.reviews = []
         
-        
-        
-        
 
         r  = requests.get(self.hp_url)
         
@@ -131,7 +128,7 @@ class Critic(object):
                 
             
     def printVerdicts(self):
-        for i,rv in enumerate(self.reviews):
+        for i,rv in enumerate(self.reviews[:130]):
             print(i)
             rv.printInfo()
             
@@ -153,93 +150,100 @@ class Critic(object):
 
 
 
+class Movie(object):
+    
+    def __init__(self,movie_hp):
+        self.reviewsURL_topCritics = movie_hp + "/reviews/?type=top_critics"
+        self.reviewMap = {}
+        try:
+            self.movieName = movie_hp.split('/')[-1]
+        except Exception as e:
+            print('ERROR extracting name')
+            repr(e)
+            self.movieName = "NAMENOTFOUND"
+        r  = requests.get(self.reviewsURL_topCritics)
 
-url = "http://www.rottentomatoes.com/critic/david-rooney/"
+        data = r.text
+        mvsoup = BeautifulSoup(data)
+        
+        for rowtag in mvsoup.find_all('div','review_table_row'):
+            desc = rowtag.find('div','review_desc')
+            try:
+                rvwLink = desc.find('a').get('href')
+            except Exception as e:
+                rvwLink = 0
+                repr(e)
+            #print(rvwLink)
+            cname = rowtag.find('div','critic_name').a.string
+            
+            #print('-' * 45)
+            self.reviewMap[cname] = rvwLink
+        
 
+    
+    def __str__(self):
+        try:
+            lctemp =  self.movieName.split('_')[0] + " " +  self.movieName.split('_')[1] +' - ' + self.movieName.split('_')[2]
+            return lctemp
+        except Exception as e:
+            repr(e)
+            return "OBJECTNAME"
+    
+    def getMovieInfo(self):
+        #extract movie info
+        pass
+         
+        
+            
+    def printReviewMap(self):
+        
+        for k in self.reviewMap:
+            print('Critic: ',k, " Link: ", self.reviewMap[k])
+        print('\n')
+        print('-' * 45)    
+        print('Found',len(self.reviewMap) ,'reviews for ', self )
+        print('-' * 45)
 
-critic1 = Critic("/critic/david-rooney/")
+def getTextFromReview(rlink):
+    
+    tr  = requests.get(rlink)
 
-critic1.printVerdicts()
-critic1.printSummary()
-#look for 
+    tdata = tr.text
+    tsoup = BeautifulSoup(tdata)
+    
+    for par in tsoup.find_all('p'):   
+        try:
+            print(par.string)
+        except Exception as e:
+            repr(e)
+
+'''
+InsideOut = Movie("http://www.rottentomatoes.com/m/inside_out_2015")
+#InsideOut.printReviewMap()
+print(InsideOut)
+tempdict = InsideOut.reviewMap
+tkeys = tempdict.keys()
+#getTextFromReview(tempdict['Wesley Morris'])
+
 
 
 
 '''
-#url = "www.rottentomatoes.com/critic/david-rooney/?cats=&genreid=&letter=&switches=&sortby=&limit=50&page=2"
-baseurl = "www.rottentomatoes.com"
-pageurl = "/critic/david-rooney/"
-r  = requests.get("http://" +baseurl+ pageurl)
+url = "http://www.rottentomatoes.com/m/inside_out_2015/"
+
+
+r  = requests.get(url)
 
 data = r.text
-
 soup = BeautifulSoup(data)
 
-nexttag = soup.find('a',text='Next')
-print(nexttag.get('href'))
-r  = requests.get("http://" +baseurl+ pageurl)
-try:
-    while(1):
-        
-        data = r.text
-        soup = BeautifulSoup(data)
-        nexttag = soup.find('a',text='Next')
-        nextpagelink = nexttag.get('href')
-        nextpageurl = "http://" +baseurl+ nextpagelink
-        print(nextpageurl)
-        r  = requests.get(nextpageurl)
-except Exception as e:
-    print("exception:",e)
+for tag in soup.find_all('table','info'):
+    #print(tag)
+    for inforow in tag.find_all('tr'):
+        #print(inforow)
+        try:
+            for infolink in inforow.find_all('a'):
+                print('tag:',infolink.span.get('itemprop'),', value:',infolink.span.string)
+        except Exception as e:
+                repr(e)
 
-centds = soup.find_all('td','center')
-
-
-
-cmprows = []
-try:
-    for td in centds:
-        print("href of center td: ",td.a.get('href'))
-        #for nxt in td.findNext('td'):
-            #print("contents of the findnext: ",nxt.contents)     
-        mlink = td
-        rvwtxt = td.findNext('td')
-        tverdict = td.findPrevious('td')
-        tscore = tverdict.findPrevious('td')
-        cmprows.append((tverdict,tscore,mlink,rvwtxt))
-        print(cmprows[len(cmprows) - 1])
-except Exception as E:
-    print("caught loopy error",E)
-
-
-nReviewsParsed = len(cmprows)
-for trow in cmprows:
-    
-    verdictSpan = trow[0].find('span')
-    try:
-        tomatoScore = verdictSpan.find('span','tMeterScore').string
-    except AttributeError:
-        tomatoScore = 'NA'    
-    
-    #fOrR = verdictSpan.find('span').get('title')
-    try:
-        fOrR = trow[1].find('span').get('class')[2] #3rd string in class attr is fresh/rotten
-    except AttributeError:
-        fOrR = 'VerdictError'   
-
-    MovieTitle = trow[2].a.string
-    rvwLink = trow[3].a.get('href')
-    
-    print("-" * 24)
-    print("Movie: ",MovieTitle)
-    print("Verdict: ",fOrR)
-    print("Tmeter Score: ",tomatoScore)
-    print("Review Link: ",rvwLink)
-
-print("-" * 50)
-print("Parsed ",nReviewsParsed, "reviews")
-#print(soup.find(id="criticsReviewsChart_main"))
-# for link in soup.find(id="criticsReviewsChart_main")
-#     #print(link.get('href'))
-#     print(link)
-    
-'''
