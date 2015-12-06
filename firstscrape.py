@@ -5,9 +5,13 @@ Created on Jun 15, 2015
 '''
 from bs4 import BeautifulSoup
 
+from selenium import webdriver
+from selenium.webdriver.common.keys import Keys
+
 import re
 import requests
 from requests.exceptions import InvalidURL
+
 
 rvwTableClass = 'table-striped'
 siteurl = "http://www.rottentomatoes.com"
@@ -148,24 +152,71 @@ class Critic(object):
         else:
             print("Object: ",rvw," is not a Review Object")
 
-
-
+'''
+class TagVector(object):
+    
+    def __init__(self):
+'''
 class Movie(object):
     
     def __init__(self,movie_hp):
-        self.reviewsURL_topCritics = movie_hp + "/reviews/?type=top_critics"
+        self.homeURL = movie_hp
+        self.reviewsURL = movie_hp + "/reviews/"
+        self.reviewsURL_tc = movie_hp + "/reviews/?type=top_critics"
         self.reviewMap = {}
+        self.tags = []
         try:
             self.movieName = movie_hp.split('/')[-1]
         except Exception as e:
             print('ERROR extracting name')
             repr(e)
             self.movieName = "NAMENOTFOUND"
-        r  = requests.get(self.reviewsURL_topCritics)
+    
+    
+    
+     
+        
+
+    
+    def __str__(self):
+        try:
+            lctemp =  self.movieName.split('_')[0] + " " +  self.movieName.split('_')[1] +' - ' + self.movieName.split('_')[2]
+            return lctemp
+        except Exception as e:
+            repr(e)
+            return "OBJECTNAME"
+    
+    def getTags(self):
+        
+        r  = requests.get(self.homeURL)
+        data = r.text
+        tagsoup = BeautifulSoup(data)
+        for tag in tagsoup.find_all('table','info'):
+    #print(tag)
+            for inforow in tag.find_all('tr'):
+                #print(inforow)
+                try:
+                    for infolink in inforow.find_all('a'):
+                        print('tag:',infolink.span.get('itemprop'),', value:',infolink.span.string)
+                        self.tags.append(infolink.span.string)
+                except Exception as e:
+                        repr(e)
+        
+    
+    def createReviewMap(self,rvwtype = 'all'):
+        
+        if rvwtype == 'top':
+        #map only top critics
+            r  = requests.get(self.reviewsURL_tc)
+        else:
+        #map all
+            r  = requests.get(self.reviewsURL)
 
         data = r.text
         mvsoup = BeautifulSoup(data)
         
+        #get links for each of this movie's reviews and put them
+        # in reviewMap
         for rowtag in mvsoup.find_all('div','review_table_row'):
             desc = rowtag.find('div','review_desc')
             try:
@@ -178,16 +229,7 @@ class Movie(object):
             
             #print('-' * 45)
             self.reviewMap[cname] = rvwLink
-        
-
     
-    def __str__(self):
-        try:
-            lctemp =  self.movieName.split('_')[0] + " " +  self.movieName.split('_')[1] +' - ' + self.movieName.split('_')[2]
-            return lctemp
-        except Exception as e:
-            repr(e)
-            return "OBJECTNAME"
     
     def getMovieInfo(self):
         #extract movie info
@@ -217,18 +259,54 @@ def getTextFromReview(rlink):
         except Exception as e:
             repr(e)
 
+
+
+
+
+genreUrl = 'http://www.rottentomatoes.com/browse/dvd-all/?services=amazon;amazon_prime;flixster;hbo_go;itunes;netflix_iw;vudu&genres=2'
+
+
+driver = webdriver.Firefox()
+driver.get("http://www.rottentomatoes.com/browse/dvd-all/?services=amazon;amazon_prime;flixster;hbo_go;itunes;netflix_iw;vudu&genres=2")
+html_source = driver.page_source
+driver.close()
+
+
+
+soup = BeautifulSoup(html_source)
+#print(soup.prettify()) 
+try:
+    for movietag in soup.find_all('div','mb-movie'):
+        try:  
+            mvinfotag = movietag.find('div','movie_info')
+            mvtitle = mvinfotag.a.h3.string
+            mvlink = mvinfotag.a.get('href')
+            print('-' * 40)
+            print('movie:',mvtitle)
+            print('link:',mvlink)
+        except Exception as e:
+            print('caught exception in movietag processing:')
+            repr(e) 
+except Exception as e:
+    print('genre outer exception:')
+    repr(e)
+
 '''
+
+
 InsideOut = Movie("http://www.rottentomatoes.com/m/inside_out_2015")
-#InsideOut.printReviewMap()
+InsideOut.getTags()
+InsideOut.createReviewMap()
 print(InsideOut)
+print(InsideOut.tags)
 tempdict = InsideOut.reviewMap
 tkeys = tempdict.keys()
 #getTextFromReview(tempdict['Wesley Morris'])
 
 
+http://www.rottentomatoes.com/browse/dvd-all/?services=amazon;amazon_prime;flixster;hbo_go;itunes;netflix_iw;vudu&genres=2
 
 
-'''
 url = "http://www.rottentomatoes.com/m/inside_out_2015/"
 
 
@@ -247,3 +325,4 @@ for tag in soup.find_all('table','info'):
         except Exception as e:
                 repr(e)
 
+'''
