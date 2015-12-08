@@ -161,12 +161,17 @@ class Movie(object):
     
     def __init__(self,movie_hp):
         self.homeURL = movie_hp
+        if self.homeURL[-1] == '/':
+            self.homeURL = self.homeURL[:-1] 
+        self.movieName = ''
         self.reviewsURL = movie_hp + "/reviews/"
         self.reviewsURL_tc = movie_hp + "/reviews/?type=top_critics"
         self.reviewMap = {}
         self.tags = []
         try:
-            self.movieName = movie_hp.split('/')[-1]
+            self.movieName = self.homeURL.split('/')[-1]
+            if (self.movieName == ''):
+                raise ValueError
         except Exception as e:
             print('ERROR extracting name')
             repr(e)
@@ -258,8 +263,17 @@ def getTextFromReview(rlink):
             print(par.string)
         except Exception as e:
             repr(e)
-
-
+'''
+def MovieManager(object):
+    
+    def __init__(self):
+        
+        #do init stuff?
+        self.ta
+'''
+            
+            
+            
 
 
 
@@ -271,12 +285,12 @@ driver.get("http://www.rottentomatoes.com/browse/dvd-all/?services=amazon;amazon
 html_source = driver.page_source
 driver.close()
 
-
-
+tagvector = {}
+movielist = []
 soup = BeautifulSoup(html_source)
 #print(soup.prettify()) 
 try:
-    for movietag in soup.find_all('div','mb-movie'):
+    for movietag in soup.find_all('div','mb-movie')[1:15]:
         try:  
             mvinfotag = movietag.find('div','movie_info')
             mvtitle = mvinfotag.a.h3.string
@@ -284,13 +298,28 @@ try:
             print('-' * 40)
             print('movie:',mvtitle)
             print('link:',mvlink)
+            
+            try:
+                fulllink = siteurl + mvlink
+                movielist.append(Movie(fulllink))
+                print('added',fulllink,'to movielist')
+            except Exception as e:
+                print('Exception creating movie object:',fulllink)
+                repr(e)
+                
         except Exception as e:
             print('caught exception in movietag processing:')
             repr(e) 
+        
 except Exception as e:
     print('genre outer exception:')
     repr(e)
-
+    
+for m in movielist: 
+    try:
+        print(m.movieName) 
+    except Exception as e:
+        repr(e)
 '''
 
 
