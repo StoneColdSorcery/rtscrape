@@ -12,6 +12,8 @@ import re
 import requests
 from requests.exceptions import InvalidURL
 
+from collections import defaultdict
+
 
 rvwTableClass = 'table-striped'
 siteurl = "http://www.rottentomatoes.com"
@@ -152,19 +154,19 @@ class Critic(object):
         else:
             print("Object: ",rvw," is not a Review Object")
 
-'''
-class TagVector(object):
-    
-    def __init__(self):
-'''
+
+
+        
+
 class Movie(object):
     
-    def __init__(self,movie_hp):
+    def __init__(self,movie_hp,parent):
+        self.parent = parent
         self.homeURL = movie_hp
         if self.homeURL[-1] == '/':
             self.homeURL = self.homeURL[:-1] 
         self.movieName = ''
-        self.reviewsURL = movie_hp + "/reviews/"
+        self.reviewsURL_all = movie_hp + "/reviews/"
         self.reviewsURL_tc = movie_hp + "/reviews/?type=top_critics"
         self.reviewMap = {}
         self.tags = []
@@ -176,12 +178,14 @@ class Movie(object):
             print('ERROR extracting name')
             repr(e)
             self.movieName = "NAMENOTFOUND"
-    
-    
-    
-     
+         
+        #----------------------------------------------    
+        #try to get movie tags and register with director
         
-
+        self.scrapeTags()
+    
+    
+    
     
     def __str__(self):
         try:
@@ -190,8 +194,10 @@ class Movie(object):
         except Exception as e:
             repr(e)
             return "OBJECTNAME"
+        
+
     
-    def getTags(self):
+    def scrapeTags(self):
         
         r  = requests.get(self.homeURL)
         data = r.text
@@ -205,7 +211,7 @@ class Movie(object):
                         print('tag:',infolink.span.get('itemprop'),', value:',infolink.span.string)
                         self.tags.append(infolink.span.string)
                 except Exception as e:
-                        repr(e)
+                        print(e)
         
     
     def createReviewMap(self,rvwtype = 'all'):
@@ -215,7 +221,7 @@ class Movie(object):
             r  = requests.get(self.reviewsURL_tc)
         else:
         #map all
-            r  = requests.get(self.reviewsURL)
+            r  = requests.get(self.reviewsURL_all)
 
         data = r.text
         mvsoup = BeautifulSoup(data)
@@ -263,20 +269,40 @@ def getTextFromReview(rlink):
             print(par.string)
         except Exception as e:
             repr(e)
-'''
-def MovieManager(object):
+  
+            
+
+class Director(object):
     
     def __init__(self):
+        self.tagvector = defaultdict(list)
+        self.movielist = []
         
-        #do init stuff?
-        self.ta
-'''
-            
-            
-            
 
-
-
+    def addMovieToList(self,link_to_add):
+        movie_to_add = Movie(link_to_add,self)
+        self.movielist.append(movie_to_add)
+        tags_to_register = movie_to_add.tags
+        
+        #register tag from this movie
+        for t in tags_to_register:
+            self.tagvector[t].append(movie_to_add)
+            
+    
+    def printMovieList(self):
+        for m in self.movielist: 
+            try:
+                print(m.movieName) 
+            except Exception as e:
+                repr(e)    
+                
+    def printTags(self):
+        print (self.tagvector.keys())
+    
+    
+        
+        
+    
 genreUrl = 'http://www.rottentomatoes.com/browse/dvd-all/?services=amazon;amazon_prime;flixster;hbo_go;itunes;netflix_iw;vudu&genres=2'
 
 
@@ -285,8 +311,7 @@ driver.get("http://www.rottentomatoes.com/browse/dvd-all/?services=amazon;amazon
 html_source = driver.page_source
 driver.close()
 
-tagvector = {}
-movielist = []
+director = Director()
 soup = BeautifulSoup(html_source)
 #print(soup.prettify()) 
 try:
@@ -301,10 +326,10 @@ try:
             
             try:
                 fulllink = siteurl + mvlink
-                movielist.append(Movie(fulllink))
+                director.addMovieToList(fulllink)
                 print('added',fulllink,'to movielist')
             except Exception as e:
-                print('Exception creating movie object:',fulllink)
+                print('Exception creating movie object:',fulllink,e)
                 repr(e)
                 
         except Exception as e:
@@ -315,11 +340,9 @@ except Exception as e:
     print('genre outer exception:')
     repr(e)
     
-for m in movielist: 
-    try:
-        print(m.movieName) 
-    except Exception as e:
-        repr(e)
+director.printMovieList()
+director.printTags()
+print(director.tagvector['Comedy'])
 '''
 
 
